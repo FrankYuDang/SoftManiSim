@@ -19,17 +19,18 @@ class BasicEnvironment():
         self.vis = True
 
         self.bullet = p
-        p.connect(p.GUI if self.vis else p.DIRECT)
-        p.setAdditionalSearchPath(pybullet_data.getDataPath())
+        p.connect(p.GUI if self.vis else p.DIRECT) #! GUI 图形化界面，DIRECT 无可视化界面
+        p.setAdditionalSearchPath(pybullet_data.getDataPath()) #! 添加 PyBullet 数据路径
         p.setGravity(0, 0, -9.81)
         p.setTimeStep(self._simulationStepTime)
 
-        p.configureDebugVisualizer(p.COV_ENABLE_GUI,0)
+        p.configureDebugVisualizer(p.COV_ENABLE_GUI,0) #! 禁用 PyBullet 的 GUI 调试控件，以简化界面。
+        #! 设置 PyBullet 的摄像机视角，包括距离、偏航角、俯仰角和目标位置。
         p.resetDebugVisualizerCamera(cameraDistance=0.8, cameraYaw=-15, cameraPitch=-25, cameraTargetPosition=[0.2,0,0.3])
-        self._pybullet = p
+        self._pybullet = p #!存储 PyBullet 模块 p，可能是为了方便后续的引用。
 
         # sim_arg = {'gui':'True'}
-        self.plane_id = p.loadURDF('plane.urdf')
+        self.plane_id = p.loadURDF('plane.urdf') #!加载一个平面 URDF 模型，作为模拟环境的地面。
         
         # self.load_robot(urdf = 'urdfs/yumi_grippers.urdf',print_joint_info=True)
         # self.load_robot(urdf = 'environment/urdf/ur5_suction.urdf',print_joint_info=True)
@@ -38,10 +39,11 @@ class BasicEnvironment():
         # self._urdf = "ur5_suction"
         # self._urdf = "ur5_suction_big"
         
-        
+        #!  加载机器人 URDF 模型。print_joint_info=True 表示在加载时打印机器人的关节信息。
         self.load_robot(urdf = f'environment/urdf/{self._urdf}.urdf',print_joint_info=True)
         
-
+        #! 设置末端执行器（End Effector）的偏移量。
+        #! 这个偏移量用于调整机器人的运动学计算结果，确保末端执行器位于正确的位置。
         # self._FK_offset = np.array([0.0,-0.00,-0.02])
         self._FK_offset = np.array([0.0,-0.00,-0.0])
         
@@ -51,8 +53,9 @@ class BasicEnvironment():
         print("\n\n\nRobot is armed and ready to use...\n\n\n")
         print ('-'*40)
         
-        camera_pos = np.array([-0.1, 0.0, 0.8])
-        camera_target = np.array([0.6, 0, 0.])        
+        #!初始化相机：
+        camera_pos = np.array([-0.1, 0.0, 0.8]) #! 初始位置
+        camera_target = np.array([0.6, 0, 0.])  #! 目标点       
         self._init_camera(camera_pos,camera_target)
         
 
@@ -173,7 +176,7 @@ class BasicEnvironment():
             if len (list_of_contacts1)>0 or len (list_of_contacts2)>0 or \
                len (list_of_contacts3)>0 or len (list_of_contacts4)>0 or len (list_of_contacts5)>0:
                 return True
-            else:
+            else: 
                 return False
 
 
@@ -348,10 +351,6 @@ class BasicEnvironment():
                         object_no = [0,0,0]
             return object_no
         
-
-
-
-
     def spline_planner(self,start_pos,start_quat, goal_pos,goal_quat, duration):
         # Extract the position and orientation from the start and goal poses
         # start_pos, start_quat = start_pose[:3], start_pose[3:]
@@ -444,6 +443,7 @@ class BasicEnvironment():
 
 
     def load_robot (self,urdf, print_joint_info = False):        
+        #! urdf 文档路径，机器人初始位置，初始姿态没有旋转
         self.robot_id = p.loadURDF(urdf,[0, 0, 0.], p.getQuaternionFromEuler([0, 0, 0]),useFixedBase=True)
         
         # self.add_a_cube_without_collision(pos=[-0.0,-0.1,0.3],size=[0.2,0.2,0.6],color=[0.6,0.6,0.6,1])
@@ -469,8 +469,8 @@ class BasicEnvironment():
         # self._JOINT_IDS = [0,1,2,3,4,5,10,12]
         # self._FINGERS_JOINT_IDS = [10,12]
 
-        self._GRIP_JOINT_ID = [6,7,8]
-        self._max_torques = [150, 150, 150, 28, 28, 28]
+        self._GRIP_JOINT_ID = [6,7,8] #! 定义夹爪相关关节的 ID 列表。
+        self._max_torques = [150, 150, 150, 28, 28, 28] #! 定义关节的最大扭矩限制
 
 
         self._jointInfo = namedtuple("jointInfo",
@@ -509,9 +509,6 @@ class BasicEnvironment():
         p.changeVisualShape(self.robot_id, 3, rgbaColor=[0.68, 0.85, 0.90, 1])
         p.changeVisualShape(self.robot_id, 5, rgbaColor=[0.68, 0.85, 0.90, 1])
         
-          
-
-
     def _init_camera(self,camera_pos,camera_target,visulize_camera = False):        
         self._camera_pos = camera_pos
         self._camera_target = camera_target
@@ -570,7 +567,8 @@ class BasicEnvironment():
 
     def move_arm(self,target_pos, target_ori,duration=0.001):
         p0,o0 = self.get_ee_state()
-        pos, quat = self.spline_planner(p0,o0,target_pos,p.getQuaternionFromEuler(target_ori),duration)
+        pos, quat = self.spline_planner(p0,o0,target_pos,
+                                        p.getQuaternionFromEuler(target_ori),duration)
         for i in range(len(pos)):
             pose = [pos[i],quat[i]]      
             self._move_arm(traget_pose=pose)
@@ -610,7 +608,7 @@ class BasicEnvironment():
 
         
                                 
-    def get_ee_state(self):
+    def get_ee_state(self): #! get end-effector state 
         pose = p.getLinkState(self.robot_id,self._GRIP_JOINT_ID[-1])[0:2]        
         return pose[0]+self._FK_offset , pose[1]
     
@@ -677,8 +675,6 @@ class BasicEnvironment():
         diff = (pos - origin_pixel_coordinate) / pixel_meter_ratio        
         print (f"diff(mm): ({diff[0]},{diff[1]})")
         return diff
-
-
 
 
     def convert_pixel_to_robot_frame(self,pos):

@@ -56,7 +56,7 @@ class ODE():
 
     def odeFunction(self,s,y):
         dydt  = np.zeros(12)
-        # % 12 elements are r (3) and R (9), respectively
+        #! % 12 elements are r (3) and R (9), respectively
         e3    = np.array([0,0,1]).reshape(3,1)              
         u_hat = np.array([[0,0,self.uy], [0, 0, -self.ux],[-self.uy, self.ux, 0]])
         r     = y[0:3].reshape(3,1)
@@ -75,9 +75,10 @@ class ODE():
     def odeStepFull(self):        
         cableLength          = (0,self.l)
         
-        t_eval               = np.linspace(0, self.l, int(self.l/self.ds))
-        sol                  = solve_ivp(self.odeFunction,cableLength,self.y0,t_eval=t_eval)
-        self.states          = np.squeeze(np.asarray(sol.y[:,-1]))
+        t_eval               = np.linspace(0, self.l, int(self.l/self.ds)) # divided into 20
+        #! sovling alone the cable length
+        sol                  = solve_ivp(self.odeFunction, cableLength, self.y0, t_eval=t_eval)
+        self.states          = np.squeeze(np.asarray(sol.y[:,-1])) # 将其转换为形状为(n,)的一维数组
         return sol.y
 
 
@@ -176,10 +177,10 @@ if __name__ == "__main__":
   
     ode = ODE()
     sfVis = softRobotVisualizer()
-    ode.updateAction(np.array([0,-0.01,0]))
+    ode.updateAction(np.array([0,-0.01,0])) # 更新机器人长度 (l)、横向弯曲 (uy) 和纵向弯曲 (ux)
     y = ode.odeStepFull()
     sfVis.visualize_3d_plot(data=y,color='b')
-    ode.y0 = y[:,-1]
+    ode.y0 = y[:,-1] #!最后一行，y的末端信息
     ode.updateAction(np.array([0,0.01,0]))    
     y = ode.odeStepFull()
     sfVis.visualize_3d_plot(data=y,color='r')

@@ -31,7 +31,7 @@ class SoftRobotBasicEnvironment():
             self.bullet.setTimeStep(self._simulationStepTime)
             self.plane_id = p.loadURDF('plane.urdf')
 
-            self.bullet.configureDebugVisualizer(self.bullet.COV_ENABLE_GUI, 0)
+            self.bullet.configureDebugVisualizer(self.bullet.COV_ENABLE_GUI, 1)
             self.bullet.resetDebugVisualizerCamera(cameraDistance=0.7, cameraYaw=180, cameraPitch=-35,
                                      cameraTargetPosition=[0., 0, 0.1])
         
@@ -191,8 +191,8 @@ class SoftRobotBasicEnvironment():
                 print("error: no object is in contact with the suction!")
                 return -1
             
-    def create_robot(self):
-        
+    def create_robot(self): #!重要
+        #! 初始化和ODE求解：
         act = np.array([0, 0, 0])
         self._ode.updateAction(act)
         sol = self._ode.odeStepFull()
@@ -200,6 +200,7 @@ class SoftRobotBasicEnvironment():
         self._base_pos_init = np.array([0, 0, 0.0])
         self._base_pos      = np.array([0, 0, 0.0])
         
+        #! 基础位置和相机设置
         if self._eyeInHand_camera_enabled:
             camera_pos = np.array([0,0,0])
             camera_target = camera_pos+ self.rotate_point_3d([0.0, 0.1, -0.05],[0,0,0])
@@ -213,7 +214,9 @@ class SoftRobotBasicEnvironment():
         visualShapeId = self.bullet.createVisualShape(self.bullet.GEOM_SPHERE, radius=radius, rgbaColor=self._body_color)
 
         # visualShapeId_tip = self.bullet.createVisualShape(self.bullet.GEOM_BOX, halfExtents=[0.01, 0.002, 0.001], rgbaColor=[1, 0, 0, 1])
+       # 
         visualShapeId_tip = self.bullet.createVisualShape(self.bullet.GEOM_BOX, halfExtents=[0.0, 0.002, 0.001], rgbaColor=[1, 0, 0, 1])
+        #  创建一个稍大一些的球体可视化形状，用于表示机器人的末端。
         visualShapeId_tip_ = self.bullet.createVisualShape(self.bullet.GEOM_SPHERE, radius=radius + 0.0025, rgbaColor=self._head_color)
         # visualShapeId_tip_ = self.bullet.createVisualShape(self.bullet.GEOM_BOX, halfExtents=[0.025, 0.025, 0.025], rgbaColor=self._head_color)
 
@@ -302,12 +305,12 @@ class SoftRobotBasicEnvironment():
                        action=np.array([0, 0, 0, 0, 0, 0, 0, 0, 0,]),
                        base_pos = np.array([0, 0, 0.]), 
                        base_orin = np.array([0,0,0]),
-                       camera_marker=True):        
+                       camera_marker=True):  #!重要       
       
         if (np.shape(action)[0]<self._number_of_segment*3):
             action = np.concatenate((np.zeros((self._number_of_segment*3)-np.shape(action)[0]),action),axis=0) 
         
-        self._ode._reset_y0()
+        self._ode._reset_y0() # y0.shape (n,)     
         sol = None
         for n in range(self._number_of_segment):
             # self._ode._update_l0(self,l0)
@@ -320,14 +323,19 @@ class SoftRobotBasicEnvironment():
             else:                
                 sol = np.concatenate((sol,sol_n),axis=1)
             
+        # print(f"sol.shape: {sol.shape}")
+            
         base_ori = self.bullet.getQuaternionFromEuler(base_orin)
         self._base_pos, _base_ori   = base_pos, base_ori 
         
-        _base_pos_init = np.array(self.bullet.multiplyTransforms ([0,0,0], [0,0,0,1], self._base_pos_init, base_ori)[0])
+        _base_pos_init = np.array(self.bullet.multiplyTransforms ([0,0,0], [0,0,0,1], 
+                                                                  self._base_pos_init, 
+                                                                  base_ori)[0])
         dp = self._base_pos - _base_pos_init        
                 
             
-        _base_pos_offset = np.array(self.bullet.multiplyTransforms ([0,0,0],[0,0,0,1],[0,-0.,0],base_ori)[0])
+        _base_pos_offset = np.array(self.bullet.multiplyTransforms ([0,0,0],[0,0,0,1],
+                                                                    [0,-0.,0],base_ori)[0])
 
         idx = np.linspace(0, sol.shape[1] - 1, self._number_of_sphere, dtype=int)
         positions = [(sol[0, i], sol[2, i], sol[1, i]) for i in idx]
@@ -335,12 +343,16 @@ class SoftRobotBasicEnvironment():
         
         pose_in_word_frame = []
         for i, pos in enumerate(positions):
-            pos, orin = self.bullet.multiplyTransforms (self._base_pos + _base_pos_offset, _base_ori, pos, [0,0,0,1])
+            pos, orin = self.bullet.multiplyTransforms (self._base_pos + _base_pos_offset,
+                                                        _base_ori, pos, [0,0,0,1])
             pose_in_word_frame.append(np.concatenate((np.array(pos),np.array(orin))))
             self.bullet.resetBasePositionAndOrientation(self._robot_bodies[i], pos , orin)
             
 
-        head_pos = np.array(self.bullet.multiplyTransforms (self._base_pos+ _base_pos_offset, _base_ori, positions[-1] + np.array([0,0.,0]), [0,0,0,1])[0])
+        head_pos = np.array(self.bullet.multiplyTransforms (self._base_pos+ _base_pos_offset,
+                                                            _base_ori, 
+                                                            positions[-1] + np.array([0,0.,0]),
+                                                            [0,0,0,1])[0])
         
         _tip_ori, tip_ori_euler  = self.calculate_orientation(positions[-3], positions[-1]) # Pitch and roll are not correct
         _ , tip_ori = self.bullet.multiplyTransforms([0,0, 0], base_ori, [0,0,0], _tip_ori)
@@ -472,7 +484,7 @@ class SoftRobotBasicEnvironment():
             
             
     def _set_marker(self,pos,ori = [0,0,0,1]):
-        if self._marker_ID is None:
+        if self._marker_ID is None: #! adding the pink ball marker 
             marker_shape = self.bullet.createVisualShape(self.bullet.GEOM_SPHERE, radius=0.03, rgbaColor=[1, 0, 0., 0.5])
             self._marker_ID = self.bullet.createMultiBody(baseMass=0, baseCollisionShapeIndex=marker_shape,
                                                     baseVisualShapeIndex=marker_shape,

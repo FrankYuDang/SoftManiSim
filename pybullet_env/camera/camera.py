@@ -5,7 +5,6 @@ from datetime import datetime
 import numpy as np
 
 
-
 class Camera:
     def __init__(self, cam_pos, cam_target, near, far, size, fov):
         self.x, self.y, self.z = cam_pos
