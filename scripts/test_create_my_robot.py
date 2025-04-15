@@ -13,4 +13,10 @@ if __name__ == "__main__":
     while True:
         t += dt
         
- 
+        yomo.move_robot_ori(action=np.array([0.0, yomo_cable_1, yomo_cable_2]),
+                            base_pos = new_pose,
+                            base_orin= base_orin)
+        
+        
+        
+        
