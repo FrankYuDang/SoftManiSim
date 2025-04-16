@@ -5,7 +5,7 @@ from pybullet_env.BasicEnvironment import SoftRobotBasicEnvironment
 
 if __name__ == "__main__":
     
-    yomo = SoftRobotBasicEnvironment(bullet=)
+    yomo = SoftRobotBasicEnvironment(bullet=bullet)
     
     t = 0
     dt = 0.01
