@@ -1,0 +1,12 @@
+# Python virtual environment
+env/
+# Folder for temporary learning scripts and experiments
+_scratch/
+
+# Other common Python ignores (optional but recommended)
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
