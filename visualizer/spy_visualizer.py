@@ -10,37 +10,53 @@ import torch
 
 
 class ODE():
-    
-    def __init__(self) -> None:
+    def __init__(self, initial_length_m=0.1, cable_distance_m=7.5e-3, ode_step_ds=0.005,
+                 axial_coupling_coefficient=0.0) -> None: # 添加轴向耦合参数
+        """
+        初始化ODE求解器
+        Args:
+            initial_length (float): 机器人参考长度，单位：米.
+            cable_distance_m (float): 缆绳到中心线的径向距离，单位：米.
+            ode_step_ds (float): ODE 积分步长, 0.005.
+            axial_coupling_coefficient (float): 弯曲导致轴向应变的耦合系数 (经验值, 通常为负数或零).
+        """
         self.l  = 0
         self.uy = 0
         self.ux = 0
         self.dp = 0
         self.err = np.array((0,0,0))
         self.errp = np.array((0,0,0))
-
+        
+        
         self.simCableLength  = 0
-        # initial length of robot
-        self.l0 = 100e-3
+        # 设置核心物理参数
+        self.l0 = initial_length_m # initial length of robot
         # cables offset
-        self.d  = 7.5e-3
+        self.d  = cable_distance_m
         # ode step time
-        self.ds     = 0.005 #0.0005  
-        # r0 = np.array([0,0,0]).reshape(3,1)  
-        # R0 = np.eye(3,3)
-        # R0 = np.reshape(R0,(9,1))
-        # y0 = np.concatenate((r0, R0), axis=0)
+        self.ds = ode_step_ds #0.0005  
+        self.k_strain = axial_coupling_coefficient # 轴向耦合系数
+        
+        self.epsilon = 0.0 # 初始化轴向应变
+        self.states = None #
+        self.action = np.zeros(3) 
+
+        
         self._reset_y0()
         
         
-    def _reset_y0(self):
+    def _reset_y0(self, initialize=False):
+        """重置初始状态向量 y0"""
         r0 = np.array([0,0,0]).reshape(3,1)  
         R0 = np.eye(3,3)
         R0 = np.reshape(R0,(9,1))
         y0 = np.concatenate((r0, R0), axis=0)
-        self.l0 = 100e-3       
+        
+        # self.l0 = 100e-3       
         self.states = np.squeeze(np.asarray(y0))
         self.y0 = np.copy(self.states)
+        if initialize:
+            self.action=np.zeros(3) 
         
         
 
@@ -50,16 +66,25 @@ class ODE():
     def updateAction(self,action):
         self.l  = self.l0 + action[0]
         # self.l  = action0
-        
-        self.uy = (action[1]) /  (self.l * self.d)
-        self.ux = (action[2]) / -(self.l * self.d)
-
+        denominator = self.l * self.d 
+        # 计算曲率 ux, uy (添加了除零保护）
+        if abs(denominator) < 1e-9:
+            self.uy = (action[1]) /  denominator
+            self.ux = (action[2]) / -denominator
+        else:
+            self.uy = 0.0
+            self.ux = 0.0
+            
+        # 新增：计算并存储轴向应变
+        self.epsilon = self._calculate_axial_strain()  
 
     def odeFunction(self,s,y):
         dydt  = np.zeros(12)
         # % 12 elements are r (3) and R (9), respectively
         e3    = np.array([0,0,1]).reshape(3,1)              
-        u_hat = np.array([[0,0,self.uy], [0, 0, -self.ux],[-self.uy, self.ux, 0]])
+        u_hat = np.array([[0,0,self.uy], 
+                          [0, 0, -self.ux],
+                          [-self.uy, self.ux, 0]])
         r     = y[0:3].reshape(3,1)
         R     = np.array( [y[3:6],y[6:9],y[9:12]]).reshape(3,3)
         # % odes
@@ -81,6 +106,17 @@ class ODE():
         self.states          = np.squeeze(np.asarray(sol.y[:,-1]))
         return sol.y
 
+    def _calculate_axial_strain(self):
+        """
+        根据弯曲曲率计算近似的轴向应变(epsilon) 
+        这是一个简化的经验模型，假设弯曲会导致压缩
+        """
+        curvature_squared = self.uy**2 + self.ux**2
+        
+        self.epsilon = self.k_strain * curvature_squared
+        calculated_epsilon = self.k_strain * curvature_squared * self.l0 
+        
+        return calculated_epsilon
 
 class softRobotVisualizer():
     def __init__(self,obsEn = False,title=None,ax_lim=None) -> None:
