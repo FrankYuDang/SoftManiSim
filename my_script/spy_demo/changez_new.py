@@ -1,6 +1,10 @@
 # function of scripts
 # load the cable length (cable 1-3) and actual measurement (x, y, z) data
 # Use ODE simulation, record the end tip position ( sim_X, Y Z) 
+# ----------------------------------------
+# 运行环境 >>> .\env\Scripts\activate 
+# update 2025-04-21 读取实验数据，进行比较， 降低误差的尝试， - 
+# 
 
 
 # 导入所需的库
@@ -23,7 +27,7 @@ except NameError: print("[警告] 无法自动确定项目根目录，请确保 
 
 # --- 检查 visualizer 模块导入 ---
 try:
-    from visualizer.visualizer import ODE
+    from visualizer.spy_visualizer import ODE
     print("[调试] 成功从 'visualizer.visualizer' 导入 ODE")
 except ImportError as e: print(f"[错误] 无法导入 ODE 类: {e}"); print("[调试] 当前 sys.path:", sys.path); sys.exit("请检查 visualizer 模块和路径。")
 
@@ -33,23 +37,26 @@ def calculate_orientation(point1, point2):
     """根据两点计算方向 (四元数)"""
     diff = np.array(point2) - np.array(point1); norm_diff = np.linalg.norm(diff)
     if norm_diff < 1e-6: return p.getQuaternionFromEuler([0,0,0]), [0,0,0]
-    if np.linalg.norm(diff[:2]) < 1e-6: yaw = 0
-    else: yaw = math.atan2(diff[1], diff[0])
-    pitch = math.atan2(-diff[2], math.sqrt(diff[0]**2 + diff[1]**2)); roll = 0
+    if np.linalg.norm(diff[:2]) < 1e-6: 
+        yaw = 0
+    else: 
+        yaw = math.atan2(diff[1], diff[0])
+    pitch = math.atan2(-diff[2], math.sqrt(diff[0]**2 + diff[1]**2)); 
+    roll = 0
     return p.getQuaternionFromEuler([roll, pitch, yaw]), [roll, pitch, yaw]
 
 # --- 绳长变化量 -> 曲率 的转换函数 (基于论文反解) ---
 def calculate_curvatures_from_dl(dl_segment, d, L0_seg, num_cables=3):
-    """根据绳长变化量计算曲率 ux, uy (基于论文反解)。"""
-    ux = 0.0; uy = 0.0
-    if abs(d) < 1e-9: print("警告: 绳索半径 d 接近于零。"); return ux, uy
+    """根据绳长变化量计算曲率 ux, uy (基于论文反解)。"""  # dl - the l  
+    ux = 0.0; uy = 0.0  #! 如何设计的。 
+    if abs(d) < 1e-9: print("警告: 绳索半径 d 接近于零。"); return ux, uy #! 如何在一行里
     if len(dl_segment) != num_cables: 
         print(f"警告: dl_segment 长度 {len(dl_segment)} != num_cables {num_cables}")
         return ux,uy
     if num_cables == 3:
         dl1, dl2, dl3 = dl_segment[0], dl_segment[1], dl_segment[2]
         uy = -dl1 / d # 计算 uy
-        denominator_ux = d * math.sqrt(3.0)
+        denominator_ux = d * math.sqrt(3.0) #! 如何在这里
         if abs(denominator_ux) > 1e-9: 
             ux = (dl3 - dl2) / denominator_ux # 计算 ux
         else: 
@@ -74,7 +81,7 @@ if __name__ == "__main__":
        
     # --- 数据文件路径和参数 ---
     print("--- 设置参数 & 加载数据 ---")
-    # 1. 输入数据文件路径
+    # 1. 输入数据文件路径 #! 数据的说明和加载
     DATA_FILE_PATH = 'c:/Users/11647/Desktop/data/circle2.xlsx'
     DATA_FILE_PATH = 'C:/Document/Projects/SoftManiSim/my_script/data/circle2.xlsx'
     # DATA_FILE_PATH = 'C:/Document/Projects/SoftManiSim/my_script/data/Processed_Data3w_20250318.xlsx' # <<< 确认 Excel 文件路径
@@ -99,7 +106,7 @@ if __name__ == "__main__":
     axial_strain_coefficient = -2000 # <--- 示例值，需要调试！  
     AXIAL_ACTION_SCALE = 0.01
     # 4. 可视化参数
-    body_color = [1, 0.0, 0.0, 1]; head_color = [0.0, 0.0, 0.75, 1]
+    body_color = [1, 0.0, 0.0, 1]; head_color = [0.0, 0.0, 0.75, 1] #颜色 RGB + Alpha 透明度
     body_sphere_radius = 0.02; number_of_sphere = 30
     my_sphere_radius = body_sphere_radius; my_number_of_sphere = number_of_sphere; my_head_color = head_color
 
@@ -126,7 +133,8 @@ if __name__ == "__main__":
             L0_cables_mm = absolute_lengths_mm[0]; print(f"[假设] 使用第一行 L0(mm): {L0_cables_mm}")
             absolute_lengths_m = absolute_lengths_mm / 1000.0; L0_cables_m = L0_cables_mm / 1000.0
             dl_sequence_m = absolute_lengths_m - L0_cables_m; print(f"[信息] 已计算 {len(dl_sequence_m)} 行 dl (m)。")
-        else: raise ValueError("错误: 数据文件为空。")
+        else: 
+            raise ValueError("错误: 数据文件为空。")
     except Exception as e: print(f"[错误] 加载或处理数据时出错: {e}"); sys.exit(1)
     if dl_sequence_m is None: print("[错误] 未能计算 dl 序列。"); sys.exit(1)
 
